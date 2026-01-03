@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  
+  <title>FairDraw™ | Autostine</title>
+  <meta property="og:title" content="FairDraw™ | Live Allocation">
+  <meta property="og:description" content="Secure, random assignment protocol. Click to reveal your position.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#000000">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body { font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent; }
+    .roman-font { font-family: 'Cinzel', serif; }
+
+    /* Glassmorphism Effect */
+    .glass-card {
+      background: rgba(20, 20, 20, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    }
+    
+    /* Mobile Optimization */
+    button, .glass-card { touch-action: manipulation; }
+
+    .signature-glow { text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
+    
+    /* Animations */
+    .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-1px, 0, 0); }
+      20%, 80% { transform: translate3d(2px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+      40%, 60% { transform: translate3d(4px, 0, 0); }
+    }
+
+    /* Toast Notification */
+    #toast-container {
+        transition: transform 0.3s ease-in-out, opacity 0.3s;
+        transform: translateY(-150%);
+        opacity: 0;
+    }
+    #toast-container.show {
+        transform: translateY(0);
+        opacity: 1;
+    }
+  </style>
+</head>
+<body class="bg-black text-white min-h-screen flex flex-col items-center justify-center p-4">
+
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-gray-900 to-black"></div>
+    <div class="absolute top-0 left-0 w-80 h-80 bg-purple-900/20 rounded-full blur-3xl opacity-60"></div>
+    <div class="absolute bottom-0 right-0 w-80 h-80 bg-yellow-600/10 rounded-full blur-3xl opacity-60"></div>
+  </div>
+
+  <div id="toast-container" class="fixed top-5 z-50 px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white font-medium shadow-2xl flex items-center gap-3">
+      <i id="toast-icon" class="fas fa-info-circle"></i>
+      <span id="toast-msg">Notification</span>
+  </div>
+
+  <div class="relative z-10 w-full max-w-4xl text-center">
+    
+    <div class="mb-8">
+      <div id="status-badge" class="inline-flex items-center px-3 py-1 rounded-full border border-gray-700 bg-gray-800/50 text-gray-400 text-xs tracking-widest uppercase mb-4 transition-all duration-500">
+        <span class="w-2 h-2 rounded-full bg-gray-500 mr-2"></span> Connecting...
+      </div>
+      <h1 class="text-5xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500">
+        FairDraw<span class="text-yellow-500">.</span>
+      </h1>
+      <p class="text-gray-500 font-light mt-2 text-sm tracking-wide">Secure Random Allocation</p>
+    </div>
+
+    <div id="cards-grid" class="grid grid-cols-2 md:grid-cols-5 gap-3">
+       <div class="col-span-full py-12 text-gray-600 animate-pulse flex flex-col items-center">
+         <i class="fas fa-circle-notch fa-spin text-2xl mb-3"></i> 
+         <span class="text-xs uppercase tracking-widest">Initializing Database...</span>
+       </div>
+    </div>
+    
+    <div id="repair-box" class="hidden mt-8 animate-bounce">
+        <button onclick="forceRepair()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all border border-red-400">
+            <i class="fas fa-tools mr-2"></i> TAP TO START SYSTEM
+        </button>
+    </div>
+    
+  </div>
+
+  <footer class="absolute bottom-4 text-center w-full z-10 select-none">
+    <p class="text-gray-600 text-[10px] flex items-center justify-center gap-2">
+      Engineered by <span class="text-yellow-600 font-bold signature-glow">Autostine</span>
+      <button onclick="adminReset()" class="text-gray-800 hover:text-red-500 transition-colors p-2">
+          <i class="fas fa-lock text-[8px]"></i>
+      </button>
+    </p>
+  </footer>
+
+  <audio id="click-sound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=click-button-140881.mp3"></audio>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import { getDatabase, ref, onValue, runTransaction, set } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+
+    // 1. CONFIGURATION
+    const firebaseConfig = {
+      apiKey: "AIzaSyDmOpuBfVzQf1K3uIUVnwU6BH1GNeHWI28",
+      authDomain: "autostine-fairdraw-26-8903e.firebaseapp.com",
+      databaseURL: "https://autostine-fairdraw-26-8903e-default-rtdb.firebaseio.com",
+      projectId: "autostine-fairdraw-26-8903e",
+      storageBucket: "autostine-fairdraw-26-8903e.firebasestorage.app",
+      messagingSenderId: "436023121716",
+      appId: "1:436023121716:web:2c2ef2d48fab2501ccf761"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, 'slots');
+
+    // 2. HELPER FUNCTIONS
+    const toRoman = (num) => ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"][num] || num;
+
+    const playClick = () => {
+        const audio = document.getElementById('click-sound');
+        audio.volume = 0.2;
+        audio.play().catch(e => console.log("Audio prevented"));
+    }
+
+    const showToast = (msg, type = 'info') => {
+        const toast = document.getElementById('toast-container');
+        const text = document.getElementById('toast-msg');
+        const icon = document.getElementById('toast-icon');
+        
+        text.innerText = msg;
+        
+        if(type === 'error') {
+            toast.className = "fixed top-5 z-50 px-6 py-3 rounded-full bg-red-900/90 backdrop-blur-md border border-red-500 text-white font-medium shadow-2xl flex items-center gap-3 show";
+            icon.className = "fas fa-exclamation-triangle";
+        } else if (type === 'success') {
+            toast.className = "fixed top-5 z-50 px-6 py-3 rounded-full bg-green-900/90 backdrop-blur-md border border-green-500 text-white font-medium shadow-2xl flex items-center gap-3 show";
+            icon.className = "fas fa-check-circle";
+        } else {
+            toast.className = "fixed top-5 z-50 px-6 py-3 rounded-full bg-gray-800/90 backdrop-blur-md border border-gray-500 text-white font-medium shadow-2xl flex items-center gap-3 show";
+            icon.className = "fas fa-info-circle";
+        }
+
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // 3. MAIN DATABASE LISTENER
+    onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        
+        // Update Status Badge
+        const badge = document.getElementById('status-badge');
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2"></span> System Online`;
+        badge.className = "inline-flex items-center px-3 py-1 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 text-xs tracking-widest uppercase mb-4";
+
+        if (!data) {
+            // DATABASE IS EMPTY -> SHOW REPAIR BUTTON
+            document.getElementById('cards-grid').innerHTML = ''; 
+            document.getElementById('repair-box').classList.remove('hidden');
+            forceRepair(true); // Attempt silent auto-repair
+        } else {
+            // DATABASE IS GOOD -> RENDER GRID
+            document.getElementById('repair-box').classList.add('hidden');
+            render(data);
+        }
+    });
+
+    // 4. REPAIR LOGIC
+    window.forceRepair = (silent = false) => {
+        const initialData = {};
+        for(let i=1; i<=10; i++) initialData[`slot${i}`] = { val: 0 };
+        
+        set(dbRef, initialData)
+            .then(() => {
+                if(!silent) showToast("System Started Successfully!", "success");
+            })
+            .catch((error) => {
+                if(!silent) showToast("Check Firebase Rules!", "error");
+            });
+    };
+
+    // 5. RENDER LOGIC
+    function render(data) {
+        const grid = document.getElementById('cards-grid');
+        grid.innerHTML = ''; 
+        const myPick = localStorage.getItem('fairdraw_receipt');
+
+        let i = 1;
+        Object.keys(data).sort().forEach(key => {
+            const slot = data[key];
+            const isTaken = slot.val !== 0;
+            const el = document.createElement('div');
+            
+            let css = "glass-card rounded-xl h-40 flex flex-col items-center justify-center relative transition-all duration-300 ";
+            
+            if(isTaken) {
+                // REVEALED CARD
+                const isMySlot = myPick === key;
+                if(isMySlot) css += "border-green-500 bg-green-900/20 scale-105 shadow-2xl shadow-green-900/50";
+                else css += "border-yellow-500/50 bg-yellow-900/20";
+
+                el.innerHTML = `
+                    <div class="text-[10px] ${isMySlot ? 'text-green-400' : 'text-yellow-500'} font-bold tracking-widest uppercase mb-1">
+                        ${isMySlot ? 'YOUR PICK' : 'Position'}
+                    </div>
+                    <div class="text-5xl font-bold text-white drop-shadow-lg roman-font">${toRoman(slot.val)}</div>
+                    <div class="absolute bottom-2 text-[10px] text-gray-500">SLOT ${String(i).padStart(2,'0')}</div>
+                `;
+            } else {
+                // LOCKED CARD
+                css += "cursor-pointer hover:bg-white/5 active:scale-95";
+                if(myPick) css += " opacity-50 cursor-not-allowed";
+
+                el.onclick = (e) => {
+                    playClick();
+                    if(myPick) {
+                        e.currentTarget.classList.add('shake');
+                        setTimeout(() => e.currentTarget.classList.remove('shake'), 500);
+                        showToast("You have already picked a slot!", "error");
+                        return;
+                    }
+                    draw(key);
+                }; 
+
+                el.innerHTML = `
+                    <div class="text-3xl text-gray-600 mb-2 transition-colors group-hover:text-white"><i class="fas fa-lock"></i></div>
+                    <div class="text-lg text-gray-400 font-medium">SLOT ${String(i).padStart(2,'0')}</div>
+                    <div class="text-[10px] text-gray-600 mt-1 uppercase tracking-wider">Tap to Unlock</div>
+                `;
+            }
+            el.className = css;
+            grid.appendChild(el);
+            i++;
+        });
+    }
+
+    // 6. DRAW TRANSACTION
+    function draw(key) {
+        runTransaction(dbRef, (data) => {
+            if(!data) return;
+            if(data[key].val !== 0) return;
+            const used = Object.values(data).map(s => s.val);
+            const avail = [1,2,3,4,5,6,7,8,9,10].filter(n => !used.includes(n));
+            if(!avail.length) return;
+            data[key].val = avail[Math.floor(Math.random() * avail.length)];
+            return data;
+        }).then(() => {
+             localStorage.setItem('fairdraw_receipt', key);
+             showToast(`Success! You got Number ${toRoman(data[key].val)}`, "success");
+             confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 }, colors: ['#FFD700', '#FFFFFF'] });
+        });
+    }
+
+    // 7. ADMIN RESET (Password: autostine123)
+    window.adminReset = () => {
+        const pass = prompt("🔐 Enter Admin Password:");
+        if(pass === "autostine123") { // <-- CHANGE THIS PASSWORD FOR SECURITY
+            if(confirm("⚠️ Clear board? This cannot be undone.")) {
+                set(dbRef, null);
+                localStorage.removeItem('fairdraw_receipt');
+                showToast("System Reset Complete", "success");
+            }
+        }
+    };
+  </script>
+</body>
+</html>
