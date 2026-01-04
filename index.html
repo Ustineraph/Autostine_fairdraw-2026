@@ -41,15 +41,27 @@
 
     .signature-glow { text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
     
-    /* ANIMATIONS */
-    .spinning-active {
-        animation: pulse-border 0.2s infinite; 
-        z-index: 50; transform: scale(1.05);
+    /* NEW ANIMATIONS: THE FLASH REVEAL */
+    .flash-enter {
+        animation: flash-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
-    @keyframes pulse-border {
-        0% { border-color: white; box-shadow: 0 0 20px rgba(255,255,255,0.5); }
-        50% { border-color: rgba(255,255,255,0.2); box-shadow: 0 0 5px rgba(255,255,255,0.1); }
-        100% { border-color: white; box-shadow: 0 0 20px rgba(255,255,255,0.5); }
+    
+    @keyframes flash-pop {
+        0% { opacity: 0; transform: scale(0.5); filter: brightness(3); }
+        50% { opacity: 1; transform: scale(1.1); filter: brightness(2); }
+        100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+    }
+
+    /* PULSING SCANNER */
+    .scanning-active {
+        animation: scan-pulse 0.8s infinite;
+        border-color: rgba(255,255,255,0.8);
+        box-shadow: 0 0 15px rgba(255,255,255,0.3);
+    }
+    @keyframes scan-pulse {
+        0% { background-color: rgba(255,255,255,0.1); }
+        50% { background-color: rgba(255,255,255,0.2); }
+        100% { background-color: rgba(255,255,255,0.1); }
     }
     
     /* MODALS */
@@ -118,7 +130,7 @@
           </div>
 
           <div class="mt-6 flex justify-between items-center border-t border-gray-800 pt-4">
-              <div class="text-xs text-gray-500">System v5.1</div>
+              <div class="text-xs text-gray-500">System v6.0</div>
               <button onclick="resetSystem()" class="bg-red-900/50 hover:bg-red-700 text-red-200 text-xs font-bold py-2 px-4 rounded border border-red-800 transition-all">
                   <i class="fas fa-trash-alt mr-2"></i> RESET SYSTEM
               </button>
@@ -166,7 +178,6 @@
   </footer>
 
   <audio id="click-sound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=click-button-140881.mp3"></audio>
-  <audio id="tick-sound" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_731478204b.mp3?filename=ui-click-43196.mp3"></audio>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
@@ -184,9 +195,9 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    const dbRef = ref(db, 'system_colors_v5'); 
+    const dbRef = ref(db, 'system_colors_v6'); // v6 for No-Spin Logic
 
-    let activeSpinCard = null;
+    let activeScanCard = null;
     const COLORS = ["RED", "BLUE", "GREEN", "YELLOW", "PURPLE", "ORANGE", "BLACK", "WHITE"];
 
     window.enterSystem = () => {
@@ -235,15 +246,15 @@
     function render(data) {
         const grid = document.getElementById('cards-grid');
         grid.innerHTML = ''; 
-        const myPick = localStorage.getItem('fairdraw_receipt_v5');
+        const myPick = localStorage.getItem('fairdraw_receipt_v6');
 
         COLORS.forEach(color => {
             const slot = data[color];
             const isTaken = slot.val !== 0;
             const el = document.createElement('div');
             
-            if (activeSpinCard === color) {
-                renderSpinningCard(el, color);
+            if (activeScanCard === color) {
+                renderScanningCard(el, color);
             } else if (isTaken) {
                 renderRevealedCard(el, color, slot.val, myPick);
             } else {
@@ -253,29 +264,29 @@
         });
     }
 
+    // --- RENDER HELPERS ---
     function renderLockedCard(el, color, myPick) {
         let css = `glass-card rounded-xl h-48 flex flex-col items-center justify-center relative transition-all duration-300 group overflow-hidden border-t-2 bg-${color} cursor-pointer hover:scale-105 active:scale-95`;
         if(myPick) css += " opacity-20 cursor-not-allowed grayscale";
 
         el.className = css;
         el.onclick = () => {
-            if(activeSpinCard) return; 
+            if(activeScanCard) return; 
             if(myPick) return showToast("You have already received your allocation.", "error");
             document.getElementById('click-sound').play().catch(()=>{});
-            startSpinSequence(color);
+            startRevealSequence(color);
         }; 
 
         el.innerHTML = `
-            <div class="mb-2 text-4xl opacity-90 drop-shadow-md transform group-hover:scale-110 transition-transform"><i class="fas fa-gem"></i></div>
-            <div class="text-[9px] text-white/80 uppercase tracking-widest mt-4 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">Tap to Reveal</div>
+            <div class="mb-2 text-4xl opacity-90 drop-shadow-md transform group-hover:scale-110 transition-transform"><i class="fas fa-fingerprint"></i></div>
+            <div class="text-[9px] text-white/80 uppercase tracking-widest mt-4 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">Tap to Access</div>
         `;
     }
 
-    function renderSpinningCard(el, color) {
-        el.className = `glass-card rounded-xl h-48 flex flex-col items-center justify-center relative border-4 border-white bg-${color} spinning-active`;
+    function renderScanningCard(el, color) {
+        el.className = `glass-card rounded-xl h-48 flex flex-col items-center justify-center relative border-2 border-white bg-${color} scanning-active`;
         el.innerHTML = `
-            <div class="text-xs text-white uppercase tracking-widest mb-2 font-bold animate-pulse">GENERATING...</div>
-            <div class="text-8xl font-bold text-white number-font drop-shadow-2xl" id="spin-num-${color}">--</div>
+            <div class="text-xs text-white uppercase tracking-widest font-bold animate-pulse"><i class="fas fa-satellite-dish fa-spin mr-2"></i>AUTHENTICATING...</div>
         `;
     }
 
@@ -284,7 +295,7 @@
         const isMySlot = myPick === color;
         
         if(isMySlot) {
-            css += "border-green-500 bg-green-900/30 scale-105 shadow-2xl shadow-green-900/50";
+            css += "border-green-500 bg-green-900/30 scale-105 shadow-2xl shadow-green-900/50 flash-enter";
         } else {
             css += "border-gray-700 bg-gray-900/50 opacity-50 grayscale";
         }
@@ -292,29 +303,20 @@
         el.className = css;
         el.innerHTML = `
             <div class="text-[10px] ${isMySlot ? 'text-green-400' : 'text-gray-500'} font-bold tracking-widest uppercase mb-2">
-                ${isMySlot ? 'YOUR POSITION' : 'ALLOCATED'}
+                ${isMySlot ? 'ACCESS GRANTED' : 'ALLOCATED'}
             </div>
             <div class="text-8xl font-bold text-white drop-shadow-lg number-font mb-2">${value}</div>
             <div class="h-1 w-8 bg-white/20 mt-2"></div>
         `;
     }
 
-    async function startSpinSequence(colorKey) {
-        activeSpinCard = colorKey;
-        const tick = document.getElementById('tick-sound');
-        tick.volume = 0.3;
-
+    // --- LOGIC: THE FAST REVEAL ---
+    async function startRevealSequence(colorKey) {
+        activeScanCard = colorKey;
+        
+        // Force visual update (Show "Authenticating...")
         const gridSnapshot = await get(dbRef);
         render(gridSnapshot.val());
-
-        const spinInterval = setInterval(() => {
-            const random = Math.floor(Math.random() * 8) + 3; 
-            const numEl = document.getElementById(`spin-num-${colorKey}`);
-            if(numEl) {
-                numEl.innerText = random;
-                tick.cloneNode(true).play().catch(()=>{});
-            }
-        }, 80); 
 
         let success = false;
         try {
@@ -330,20 +332,21 @@
             success = true;
         } catch (e) { console.error(e); }
 
+        // Short "Scanning" Delay (0.8s) for weight
         setTimeout(async () => {
-            clearInterval(spinInterval);
-            activeSpinCard = null; 
+            activeScanCard = null; 
             if(success) {
-                localStorage.setItem('fairdraw_receipt_v5', colorKey);
+                localStorage.setItem('fairdraw_receipt_v6', colorKey);
                 confetti({ particleCount: 200, spread: 150, origin: { y: 0.6 } });
             } else {
                 showToast("Connection Error or Taken.", "error");
             }
             const finalSnap = await get(dbRef);
             render(finalSnap.val());
-        }, 3000);
+        }, 800);
     }
 
+    // --- ADMIN SYSTEM ---
     window.openAdmin = async () => {
         const pass = prompt("🔐 Enter Admin Password:");
         if(pass === "admin123") {
