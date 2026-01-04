@@ -10,14 +10,15 @@
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#000000">
   
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&family=Oswald:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
   <style>
     body { font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent; }
-    .roman-font { font-family: 'Cinzel', serif; }
+    /* Switched to Oswald for punchy Normal Numbers */
+    .number-font { font-family: 'Oswald', sans-serif; }
 
     /* The Glass Effect */
     .glass-card {
@@ -28,7 +29,7 @@
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     }
     
-    /* THE 8 COMMON COLORS (High Contrast Gradients) */
+    /* THE 8 COMMON COLORS (High Contrast) */
     .bg-RED { background: linear-gradient(135deg, #8b0000 0%, #ff0000 100%); border-color: #ff4d4d; }
     .bg-BLUE { background: linear-gradient(135deg, #00008b 0%, #0000ff 100%); border-color: #4d4dff; }
     .bg-GREEN { background: linear-gradient(135deg, #006400 0%, #00ff00 100%); border-color: #4dff4d; }
@@ -40,6 +41,26 @@
 
     .signature-glow { text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
     
+    /* SPIN ANIMATION */
+    .spinning-active {
+        animation: pulse-border 0.5s infinite;
+    }
+    @keyframes pulse-border {
+        0% { border-color: white; transform: scale(1.02); }
+        50% { border-color: rgba(255,255,255,0.2); transform: scale(1); }
+        100% { border-color: white; transform: scale(1.02); }
+    }
+    
+    /* Blur effect for the spinning numbers */
+    .blur-spin {
+        filter: blur(1px);
+        animation: rapid-shake 0.1s infinite;
+    }
+    @keyframes rapid-shake {
+        0% { transform: translateY(1px); }
+        100% { transform: translateY(-1px); }
+    }
+
     /* Intro Modal */
     #intro-modal {
         position: fixed; inset: 0; z-index: 100;
@@ -67,14 +88,14 @@
   <div id="intro-modal">
       <div class="glass-card p-8 rounded-2xl max-w-md mx-4 text-center border border-yellow-900/50">
           <div class="text-yellow-500 text-3xl mb-4"><i class="fas fa-shield-alt"></i></div>
-          <h2 class="text-2xl font-bold mb-2 roman-font text-white">PROTOCOL BRIEFING</h2>
+          <h2 class="text-2xl font-bold mb-2 number-font text-white tracking-wide">PROTOCOL BRIEFING</h2>
           <div class="h-px w-20 bg-yellow-500 mx-auto mb-6"></div>
           
           <ul class="text-left text-sm text-gray-400 space-y-3 mb-8 font-mono">
               <li><span class="text-yellow-500 mr-2">01.</span> Identify your assigned <strong>COLOR</strong>.</li>
               <li><span class="text-yellow-500 mr-2">02.</span> Do not access another operative's card.</li>
-              <li><span class="text-yellow-500 mr-2">03.</span> Positions <strong>I & II</strong> are locked.</li>
-              <li><span class="text-yellow-500 mr-2">04.</span> Allocation Range: <strong>III - X</strong>.</li>
+              <li><span class="text-yellow-500 mr-2">03.</span> Positions <strong>1 & 2</strong> are locked.</li>
+              <li><span class="text-yellow-500 mr-2">04.</span> Allocation Range: <strong>3 - 10</strong>.</li>
           </ul>
           
           <button onclick="enterSystem()" class="w-full bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-3 rounded tracking-widest uppercase text-xs transition-all border border-yellow-500">
@@ -138,18 +159,13 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    // NEW DATABASE PATH: v2_common_colors
-    const dbRef = ref(db, 'system_colors_v2'); 
+    // V3 = Fresh Start for the new Logic
+    const dbRef = ref(db, 'system_colors_v3'); 
 
-    let isProcessing = false;
+    // Global variable to track the actively spinning card
+    let activeSpinCard = null;
 
-    // THE 8 COMMON COLORS (Internal IDs)
-    const COLORS = [
-        "RED", "BLUE", "GREEN", "YELLOW",
-        "PURPLE", "ORANGE", "BLACK", "WHITE"
-    ];
-
-    const toRoman = (num) => ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"][num] || num;
+    const COLORS = ["RED", "BLUE", "GREEN", "YELLOW", "PURPLE", "ORANGE", "BLACK", "WHITE"];
 
     // 1. Enter System
     window.enterSystem = () => {
@@ -175,7 +191,7 @@
         }
     });
 
-    // 3. Initialize (Create the 8 Colors)
+    // 3. Initialize
     window.forceRepair = (silent = false) => {
         const initialData = {};
         COLORS.forEach(color => {
@@ -197,98 +213,135 @@
             const isTaken = slot.val !== 0;
             const el = document.createElement('div');
             
-            // The "Studio Color" Style
-            let css = `glass-card rounded-xl h-48 flex flex-col items-center justify-center relative transition-all duration-500 group overflow-hidden border-t-2 `;
-            
-            if(isTaken) {
-                // REVEALED
-                const isMySlot = myPick === color;
-                
-                if(isMySlot) {
-                    css += "border-green-500 bg-green-900/30 scale-105 shadow-2xl shadow-green-900/50";
-                } else {
-                    css += "border-gray-700 bg-gray-900/50 opacity-50 grayscale";
-                }
-
-                el.innerHTML = `
-                    <div class="text-[10px] ${isMySlot ? 'text-green-400' : 'text-gray-500'} font-bold tracking-widest uppercase mb-2">
-                        ${isMySlot ? 'ASSIGNED TO YOU' : 'ALLOCATED'}
-                    </div>
-                    <div class="text-6xl font-bold text-white drop-shadow-lg roman-font mb-2">${toRoman(slot.val)}</div>
-                    <div class="h-1 w-8 bg-white/20 mt-2"></div>
-                `;
-            } else {
-                // AVAILABLE (Just Color + Icon)
-                css += `bg-${color} cursor-pointer hover:scale-105 active:scale-95`;
-                
-                if(myPick) css += " opacity-20 cursor-not-allowed grayscale";
-
-                el.onclick = () => {
-                    document.getElementById('click-sound').play().catch(()=>{});
-                    if(isProcessing) return;
-                    if(myPick) return showToast("You have already received your allocation.", "error");
-                    
-                    animateShuffle(el, color);
-                    draw(color);
-                }; 
-
-                // NO NAME DISPLAYED HERE - JUST ICON
-                el.innerHTML = `
-                    <div class="mb-2 text-4xl opacity-90 drop-shadow-md transform group-hover:scale-110 transition-transform"><i class="fas fa-gem"></i></div>
-                    <div class="text-[9px] text-white/80 uppercase tracking-widest mt-4 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">Tap to Reveal</div>
-                `;
+            // Check if THIS specific card is currently spinning locally
+            if (activeSpinCard === color) {
+                // RENDER SHUFFLE ANIMATION (Even if DB has data, keep spinning until timer ends)
+                renderSpinningCard(el, color);
+            } 
+            else if (isTaken) {
+                // REVEALED STATE
+                renderRevealedCard(el, color, slot.val, myPick);
+            } 
+            else {
+                // LOCKED STATE
+                renderLockedCard(el, color, myPick);
             }
-            el.className = css;
+            
             grid.appendChild(el);
         });
     }
 
-    // 5. Visual Shuffle
-    function animateShuffle(element, colorName) {
-        element.className += " animate-pulse border-white";
-        element.innerHTML = `
-            <div class="text-xs text-white uppercase tracking-widest mb-2">Processing...</div>
-            <div class="text-5xl font-bold text-white roman-font" id="shuffle-${colorName}">--</div>
-        `;
+    // --- Helper Renders ---
+    
+    function renderLockedCard(el, color, myPick) {
+        let css = `glass-card rounded-xl h-48 flex flex-col items-center justify-center relative transition-all duration-300 group overflow-hidden border-t-2 bg-${color} cursor-pointer hover:scale-105 active:scale-95`;
         
-        let counter = 0;
-        const interval = setInterval(() => {
-            const random = Math.floor(Math.random() * 8) + 3; // fake numbers for effect
-            const el = document.getElementById(`shuffle-${colorName}`);
-            if(el) el.innerText = toRoman(random);
-            counter++;
-            if(counter > 20) clearInterval(interval); 
-        }, 100);
-    }
+        if(myPick) css += " opacity-20 cursor-not-allowed grayscale";
 
-    // 6. Secure Draw (Logic: 3-10)
-    function draw(key) {
-        isProcessing = true;
-        
-        runTransaction(dbRef, (data) => {
-            if(!data) return;
-            if(data[key].val !== 0) return;
-
-            const used = Object.values(data).map(s => s.val);
-            // ADMIN LOGIC: Only pick from 3, 4, 5, 6, 7, 8, 9, 10
-            const avail = [3,4,5,6,7,8,9,10].filter(n => !used.includes(n));
+        el.className = css;
+        el.onclick = () => {
+            document.getElementById('click-sound').play().catch(()=>{});
+            if(activeSpinCard) return; // Prevent double clicks
+            if(myPick) return showToast("You have already received your allocation.", "error");
             
-            if(!avail.length) return; 
+            startSpinSequence(color);
+        }; 
 
-            const picked = avail[Math.floor(Math.random() * avail.length)];
-            data[key].val = picked;
-            return data;
-        }).then((result) => {
-             if(result.committed) {
-                 localStorage.setItem('fairdraw_color_receipt', key);
-                 confetti({ particleCount: 200, spread: 150, origin: { y: 0.6 } });
-             } else {
-                 showToast("Error. Try again.", "error");
-             }
-        }).finally(() => { isProcessing = false; });
+        el.innerHTML = `
+            <div class="mb-2 text-4xl opacity-90 drop-shadow-md transform group-hover:scale-110 transition-transform"><i class="fas fa-gem"></i></div>
+            <div class="text-[9px] text-white/80 uppercase tracking-widest mt-4 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">Tap to Reveal</div>
+        `;
     }
 
-    // 7. Admin Menu (Shows Names so YOU know who picked what)
+    function renderSpinningCard(el, color) {
+        // High energy spin look
+        el.className = `glass-card rounded-xl h-48 flex flex-col items-center justify-center relative border-2 bg-${color} spinning-active`;
+        
+        // This inner HTML gets updated by the Interval inside startSpinSequence
+        el.innerHTML = `
+            <div class="text-xs text-white uppercase tracking-widest mb-2 font-bold animate-pulse">Scanning...</div>
+            <div class="text-7xl font-bold text-white number-font blur-spin" id="spin-num-${color}">0</div>
+        `;
+    }
+
+    function renderRevealedCard(el, color, value, myPick) {
+        let css = `glass-card rounded-xl h-48 flex flex-col items-center justify-center relative transition-all duration-500 group overflow-hidden border-t-2 `;
+        const isMySlot = myPick === color;
+        
+        if(isMySlot) {
+            css += "border-green-500 bg-green-900/30 scale-105 shadow-2xl shadow-green-900/50";
+        } else {
+            css += "border-gray-700 bg-gray-900/50 opacity-50 grayscale";
+        }
+        
+        el.className = css;
+        el.innerHTML = `
+            <div class="text-[10px] ${isMySlot ? 'text-green-400' : 'text-gray-500'} font-bold tracking-widest uppercase mb-2">
+                ${isMySlot ? 'YOUR POSITION' : 'ALLOCATED'}
+            </div>
+            <div class="text-7xl font-bold text-white drop-shadow-lg number-font mb-2">${value}</div>
+            <div class="h-1 w-8 bg-white/20 mt-2"></div>
+        `;
+    }
+
+    // 5. The "Game Show" Spin Logic
+    async function startSpinSequence(colorKey) {
+        // 1. Lock the UI visually immediately
+        activeSpinCard = colorKey;
+        
+        // Force re-render to show the spin state
+        const dataSnapshot = await get(dbRef);
+        render(dataSnapshot.val());
+
+        // 2. Start Visual Cycle (The "Blurry Numbers")
+        const spinInterval = setInterval(() => {
+            const random = Math.floor(Math.random() * 8) + 3; // 3-10
+            const numEl = document.getElementById(`spin-num-${colorKey}`);
+            if(numEl) numEl.innerText = random;
+        }, 80); // Change number every 80ms
+
+        // 3. Perform Logic in Background
+        let success = false;
+        try {
+            await runTransaction(dbRef, (data) => {
+                if(!data) return;
+                if(data[colorKey].val !== 0) return;
+
+                const used = Object.values(data).map(s => s.val);
+                const avail = [3,4,5,6,7,8,9,10].filter(n => !used.includes(n)); // 3-10 ONLY
+                
+                if(!avail.length) return; 
+
+                const picked = avail[Math.floor(Math.random() * avail.length)];
+                data[colorKey].val = picked;
+                return data;
+            });
+            success = true;
+        } catch (e) {
+            console.error(e);
+        }
+
+        // 4. WAIT! Force the spin to last at least 2.5 seconds total
+        // This ensures they SEE the animation even if the internet is fast.
+        setTimeout(async () => {
+            clearInterval(spinInterval);
+            activeSpinCard = null; // Release the visual lock
+            
+            if(success) {
+                localStorage.setItem('fairdraw_color_receipt', colorKey);
+                confetti({ particleCount: 200, spread: 150, origin: { y: 0.6 } });
+            } else {
+                showToast("Connection Error or Taken.", "error");
+            }
+
+            // Get fresh data to show final result
+            const finalSnap = await get(dbRef);
+            render(finalSnap.val());
+            
+        }, 2500); // 2.5 Seconds of suspense
+    }
+
+    // 6. Admin
     window.adminMenu = () => {
         const pass = prompt("🔐 Enter Admin Password:");
         if(pass === "admin123") {
@@ -300,7 +353,7 @@
                     let report = "📊 REPORT:\n\n";
                     COLORS.forEach(c => {
                         const val = data[c].val;
-                        const status = val === 0 ? "Pending" : `POSITION ${toRoman(val)}`;
+                        const status = val === 0 ? "Pending" : `POSITION ${val}`;
                         report += `${c}: ${status}\n`;
                     });
                     alert(report);
