@@ -4,22 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   
-  <title>FairDraw™ | Autostine</title>
-  <meta property="og:title" content="FairDraw™ | Live Allocation">
-  <meta property="og:description" content="Secure, random assignment protocol. Click to reveal your position.">
+  <title>FairDraw™ | Studio Protocol</title>
+  <meta property="og:title" content="FairDraw™ | Allocation Protocol">
+  <meta property="og:description" content="Authorized Personnel Only. Select your Color Code.">
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#000000">
   
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&family=Cinzel:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
   <style>
     body { font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent; }
-    .roman-font { font-family: 'Cinzel', serif; } /* For the SLOT label */
+    .roman-font { font-family: 'Cinzel', serif; }
 
+    /* The Glass Effect */
     .glass-card {
       background: rgba(20, 20, 20, 0.85);
       backdrop-filter: blur(20px);
@@ -28,34 +28,59 @@
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     }
     
-    button, .glass-card { touch-action: manipulation; }
+    /* THE 8 COMMON COLORS (High Contrast Gradients) */
+    .bg-RED { background: linear-gradient(135deg, #8b0000 0%, #ff0000 100%); border-color: #ff4d4d; }
+    .bg-BLUE { background: linear-gradient(135deg, #00008b 0%, #0000ff 100%); border-color: #4d4dff; }
+    .bg-GREEN { background: linear-gradient(135deg, #006400 0%, #00ff00 100%); border-color: #4dff4d; }
+    .bg-YELLOW { background: linear-gradient(135deg, #8b8000 0%, #ffff00 100%); border-color: #ffff4d; }
+    .bg-PURPLE { background: linear-gradient(135deg, #4b0082 0%, #800080 100%); border-color: #d24dff; }
+    .bg-ORANGE { background: linear-gradient(135deg, #8b4500 0%, #ffa500 100%); border-color: #ffc04d; }
+    .bg-BLACK { background: linear-gradient(135deg, #000000 0%, #333333 100%); border-color: #888888; }
+    .bg-WHITE { background: linear-gradient(135deg, #666666 0%, #ffffff 100%); border-color: #ffffff; }
+
     .signature-glow { text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
     
-    .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
-    @keyframes shake {
-      10%, 90% { transform: translate3d(-1px, 0, 0); }
-      20%, 80% { transform: translate3d(2px, 0, 0); }
-      30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-      40%, 60% { transform: translate3d(4px, 0, 0); }
+    /* Intro Modal */
+    #intro-modal {
+        position: fixed; inset: 0; z-index: 100;
+        background: black;
+        display: flex; align-items: center; justify-content: center;
+        transition: opacity 0.5s;
     }
+    .fade-out { opacity: 0; pointer-events: none; }
 
+    /* Toast */
     #toast-container {
         transition: transform 0.3s ease-in-out, opacity 0.3s;
         transform: translateY(-150%);
         opacity: 0;
     }
-    #toast-container.show {
-        transform: translateY(0);
-        opacity: 1;
-    }
+    #toast-container.show { transform: translateY(0); opacity: 1; }
   </style>
 </head>
 <body class="bg-black text-white min-h-screen flex flex-col items-center justify-center p-4">
 
   <div class="fixed inset-0 z-0 pointer-events-none">
     <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-gray-900 to-black"></div>
-    <div class="absolute top-0 left-0 w-80 h-80 bg-purple-900/20 rounded-full blur-3xl opacity-60"></div>
-    <div class="absolute bottom-0 right-0 w-80 h-80 bg-yellow-600/10 rounded-full blur-3xl opacity-60"></div>
+  </div>
+
+  <div id="intro-modal">
+      <div class="glass-card p-8 rounded-2xl max-w-md mx-4 text-center border border-yellow-900/50">
+          <div class="text-yellow-500 text-3xl mb-4"><i class="fas fa-shield-alt"></i></div>
+          <h2 class="text-2xl font-bold mb-2 roman-font text-white">PROTOCOL BRIEFING</h2>
+          <div class="h-px w-20 bg-yellow-500 mx-auto mb-6"></div>
+          
+          <ul class="text-left text-sm text-gray-400 space-y-3 mb-8 font-mono">
+              <li><span class="text-yellow-500 mr-2">01.</span> Identify your assigned <strong>COLOR</strong>.</li>
+              <li><span class="text-yellow-500 mr-2">02.</span> Do not access another operative's card.</li>
+              <li><span class="text-yellow-500 mr-2">03.</span> Positions <strong>I & II</strong> are locked.</li>
+              <li><span class="text-yellow-500 mr-2">04.</span> Allocation Range: <strong>III - X</strong>.</li>
+          </ul>
+          
+          <button onclick="enterSystem()" class="w-full bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-3 rounded tracking-widest uppercase text-xs transition-all border border-yellow-500">
+              I Understand - Proceed
+          </button>
+      </div>
   </div>
 
   <div id="toast-container" class="fixed top-5 z-50 px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white font-medium shadow-2xl flex items-center gap-3">
@@ -63,7 +88,7 @@
       <span id="toast-msg">Notification</span>
   </div>
 
-  <div class="relative z-10 w-full max-w-4xl text-center">
+  <div class="relative z-10 w-full max-w-5xl text-center">
     
     <div class="mb-8">
       <div id="status-badge" class="inline-flex items-center px-3 py-1 rounded-full border border-gray-700 bg-gray-800/50 text-gray-400 text-xs tracking-widest uppercase mb-4 transition-all duration-500">
@@ -72,19 +97,15 @@
       <h1 class="text-5xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500">
         FairDraw<span class="text-yellow-500">.</span>
       </h1>
-      <p class="text-gray-500 font-light mt-2 text-sm tracking-wide">Secure Random Allocation</p>
+      <p class="text-gray-500 font-light mt-2 text-xs tracking-widest uppercase">Select Your Code</p>
     </div>
 
-    <div id="cards-grid" class="grid grid-cols-2 md:grid-cols-5 gap-3">
-       <div class="col-span-full py-12 text-gray-600 animate-pulse flex flex-col items-center">
-         <i class="fas fa-circle-notch fa-spin text-2xl mb-3"></i> 
-         <span class="text-xs uppercase tracking-widest">Initializing Database...</span>
+    <div id="cards-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
        </div>
-    </div>
     
-    <div id="repair-box" class="hidden mt-8 animate-bounce">
-        <button onclick="forceRepair()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all border border-red-400">
-            <i class="fas fa-tools mr-2"></i> TAP TO START SYSTEM
+    <div id="repair-box" class="hidden mt-8">
+        <button onclick="forceRepair()" class="bg-red-900/50 text-red-400 border border-red-500 px-6 py-2 rounded text-xs uppercase hover:bg-red-900">
+            Initialize Protocols
         </button>
     </div>
     
@@ -93,7 +114,7 @@
   <footer class="absolute bottom-4 text-center w-full z-10 select-none">
     <p class="text-gray-600 text-[10px] flex items-center justify-center gap-2">
       Engineered by <span class="text-yellow-600 font-bold signature-glow">Autostine</span>
-      <button onclick="adminReset()" class="text-gray-800 hover:text-red-500 transition-colors p-2">
+      <button onclick="adminMenu()" class="text-gray-800 hover:text-white transition-colors p-2">
           <i class="fas fa-lock text-[8px]"></i>
       </button>
     </p>
@@ -103,9 +124,8 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import { getDatabase, ref, onValue, runTransaction, set } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+    import { getDatabase, ref, onValue, runTransaction, set, get } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-    // ✅ YOUR NEW CONFIG
     const firebaseConfig = {
       apiKey: "AIzaSyDmOpuBfVzQf1K3uIUVnwU6BH1GNeHWI28",
       authDomain: "autostine-fairdraw-26-8903e.firebaseapp.com",
@@ -118,42 +138,29 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    const dbRef = ref(db, 'slots');
+    // NEW DATABASE PATH: v2_common_colors
+    const dbRef = ref(db, 'system_colors_v2'); 
 
-    // Helper: Roman Numerals
+    let isProcessing = false;
+
+    // THE 8 COMMON COLORS (Internal IDs)
+    const COLORS = [
+        "RED", "BLUE", "GREEN", "YELLOW",
+        "PURPLE", "ORANGE", "BLACK", "WHITE"
+    ];
+
     const toRoman = (num) => ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"][num] || num;
 
-    const playClick = () => {
-        const audio = document.getElementById('click-sound');
-        audio.volume = 0.2;
-        audio.play().catch(e => console.log("Audio prevented"));
+    // 1. Enter System
+    window.enterSystem = () => {
+        const modal = document.getElementById('intro-modal');
+        modal.classList.add('fade-out');
+        setTimeout(() => modal.style.display = 'none', 500);
     }
 
-    const showToast = (msg, type = 'info') => {
-        const toast = document.getElementById('toast-container');
-        const text = document.getElementById('toast-msg');
-        const icon = document.getElementById('toast-icon');
-        
-        text.innerText = msg;
-        
-        if(type === 'error') {
-            toast.className = "fixed top-5 z-50 px-6 py-3 rounded-full bg-red-900/90 backdrop-blur-md border border-red-500 text-white font-medium shadow-2xl flex items-center gap-3 show";
-            icon.className = "fas fa-exclamation-triangle";
-        } else if (type === 'success') {
-            toast.className = "fixed top-5 z-50 px-6 py-3 rounded-full bg-green-900/90 backdrop-blur-md border border-green-500 text-white font-medium shadow-2xl flex items-center gap-3 show";
-            icon.className = "fas fa-check-circle";
-        } else {
-            toast.className = "fixed top-5 z-50 px-6 py-3 rounded-full bg-gray-800/90 backdrop-blur-md border border-gray-500 text-white font-medium shadow-2xl flex items-center gap-3 show";
-            icon.className = "fas fa-info-circle";
-        }
-
-        setTimeout(() => toast.classList.remove('show'), 3000);
-    }
-
-    // LISTENER
+    // 2. Main Listener
     onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
-        
         const badge = document.getElementById('status-badge');
         badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2"></span> System Online`;
         badge.className = "inline-flex items-center px-3 py-1 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 text-xs tracking-widest uppercase mb-4";
@@ -168,102 +175,152 @@
         }
     });
 
+    // 3. Initialize (Create the 8 Colors)
     window.forceRepair = (silent = false) => {
         const initialData = {};
-        for(let i=1; i<=10; i++) initialData[`slot${i}`] = { val: 0 };
-        
-        set(dbRef, initialData)
-            .then(() => {
-                if(!silent) showToast("System Started Successfully!", "success");
-            })
-            .catch((error) => {
-                if(!silent) showToast("Check Firebase Rules!", "error");
-            });
+        COLORS.forEach(color => {
+            initialData[color] = { val: 0 };
+        });
+        set(dbRef, initialData).then(() => {
+            if(!silent) showToast("Colors Initialized", "success");
+        });
     };
 
+    // 4. Render Grid
     function render(data) {
         const grid = document.getElementById('cards-grid');
         grid.innerHTML = ''; 
-        const myPick = localStorage.getItem('fairdraw_receipt');
+        const myPick = localStorage.getItem('fairdraw_color_receipt');
 
-        let i = 1;
-        Object.keys(data).sort().forEach(key => {
-            const slot = data[key];
+        COLORS.forEach(color => {
+            const slot = data[color];
             const isTaken = slot.val !== 0;
             const el = document.createElement('div');
             
-            let css = "glass-card rounded-xl h-40 flex flex-col items-center justify-center relative transition-all duration-300 ";
+            // The "Studio Color" Style
+            let css = `glass-card rounded-xl h-48 flex flex-col items-center justify-center relative transition-all duration-500 group overflow-hidden border-t-2 `;
             
-            // Generate Roman Numeral for SLOT NAME (e.g., SLOT IV)
-            const romanSlotName = toRoman(i);
-
             if(isTaken) {
                 // REVEALED
-                const isMySlot = myPick === key;
-                if(isMySlot) css += "border-green-500 bg-green-900/20 scale-105 shadow-2xl shadow-green-900/50";
-                else css += "border-yellow-500/50 bg-yellow-900/20";
+                const isMySlot = myPick === color;
+                
+                if(isMySlot) {
+                    css += "border-green-500 bg-green-900/30 scale-105 shadow-2xl shadow-green-900/50";
+                } else {
+                    css += "border-gray-700 bg-gray-900/50 opacity-50 grayscale";
+                }
 
                 el.innerHTML = `
-                    <div class="text-[10px] ${isMySlot ? 'text-green-400' : 'text-yellow-500'} font-bold tracking-widest uppercase mb-1">
-                        ${isMySlot ? 'YOUR PICK' : 'Position'}
+                    <div class="text-[10px] ${isMySlot ? 'text-green-400' : 'text-gray-500'} font-bold tracking-widest uppercase mb-2">
+                        ${isMySlot ? 'ASSIGNED TO YOU' : 'ALLOCATED'}
                     </div>
-                    <div class="text-5xl font-bold text-white drop-shadow-lg">${slot.val}</div>
-                    <div class="absolute bottom-2 text-[10px] text-gray-500 roman-font">SLOT ${romanSlotName}</div>
+                    <div class="text-6xl font-bold text-white drop-shadow-lg roman-font mb-2">${toRoman(slot.val)}</div>
+                    <div class="h-1 w-8 bg-white/20 mt-2"></div>
                 `;
             } else {
-                // LOCKED
-                css += "cursor-pointer hover:bg-white/5 active:scale-95";
-                if(myPick) css += " opacity-50 cursor-not-allowed";
+                // AVAILABLE (Just Color + Icon)
+                css += `bg-${color} cursor-pointer hover:scale-105 active:scale-95`;
+                
+                if(myPick) css += " opacity-20 cursor-not-allowed grayscale";
 
-                el.onclick = (e) => {
-                    playClick();
-                    if(myPick) {
-                        e.currentTarget.classList.add('shake');
-                        setTimeout(() => e.currentTarget.classList.remove('shake'), 500);
-                        showToast("You have already picked a slot!", "error");
-                        return;
-                    }
-                    draw(key);
+                el.onclick = () => {
+                    document.getElementById('click-sound').play().catch(()=>{});
+                    if(isProcessing) return;
+                    if(myPick) return showToast("You have already received your allocation.", "error");
+                    
+                    animateShuffle(el, color);
+                    draw(color);
                 }; 
 
+                // NO NAME DISPLAYED HERE - JUST ICON
                 el.innerHTML = `
-                    <div class="text-3xl text-gray-600 mb-2 transition-colors group-hover:text-white"><i class="fas fa-lock"></i></div>
-                    <div class="text-lg text-gray-400 font-medium roman-font">SLOT ${romanSlotName}</div>
-                    <div class="text-[10px] text-gray-600 mt-1 uppercase tracking-wider font-sans">Tap to Unlock</div>
+                    <div class="mb-2 text-4xl opacity-90 drop-shadow-md transform group-hover:scale-110 transition-transform"><i class="fas fa-gem"></i></div>
+                    <div class="text-[9px] text-white/80 uppercase tracking-widest mt-4 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">Tap to Reveal</div>
                 `;
             }
             el.className = css;
             grid.appendChild(el);
-            i++;
         });
     }
 
+    // 5. Visual Shuffle
+    function animateShuffle(element, colorName) {
+        element.className += " animate-pulse border-white";
+        element.innerHTML = `
+            <div class="text-xs text-white uppercase tracking-widest mb-2">Processing...</div>
+            <div class="text-5xl font-bold text-white roman-font" id="shuffle-${colorName}">--</div>
+        `;
+        
+        let counter = 0;
+        const interval = setInterval(() => {
+            const random = Math.floor(Math.random() * 8) + 3; // fake numbers for effect
+            const el = document.getElementById(`shuffle-${colorName}`);
+            if(el) el.innerText = toRoman(random);
+            counter++;
+            if(counter > 20) clearInterval(interval); 
+        }, 100);
+    }
+
+    // 6. Secure Draw (Logic: 3-10)
     function draw(key) {
+        isProcessing = true;
+        
         runTransaction(dbRef, (data) => {
             if(!data) return;
             if(data[key].val !== 0) return;
+
             const used = Object.values(data).map(s => s.val);
-            const avail = [1,2,3,4,5,6,7,8,9,10].filter(n => !used.includes(n));
-            if(!avail.length) return;
-            data[key].val = avail[Math.floor(Math.random() * avail.length)];
+            // ADMIN LOGIC: Only pick from 3, 4, 5, 6, 7, 8, 9, 10
+            const avail = [3,4,5,6,7,8,9,10].filter(n => !used.includes(n));
+            
+            if(!avail.length) return; 
+
+            const picked = avail[Math.floor(Math.random() * avail.length)];
+            data[key].val = picked;
             return data;
-        }).then(() => {
-             localStorage.setItem('fairdraw_receipt', key);
-             showToast(`Success! You got Number ${data[key].val}`, "success");
-             confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 }, colors: ['#FFD700', '#FFFFFF'] });
-        });
+        }).then((result) => {
+             if(result.committed) {
+                 localStorage.setItem('fairdraw_color_receipt', key);
+                 confetti({ particleCount: 200, spread: 150, origin: { y: 0.6 } });
+             } else {
+                 showToast("Error. Try again.", "error");
+             }
+        }).finally(() => { isProcessing = false; });
     }
 
-    window.adminReset = () => {
+    // 7. Admin Menu (Shows Names so YOU know who picked what)
+    window.adminMenu = () => {
         const pass = prompt("🔐 Enter Admin Password:");
         if(pass === "admin123") {
-            if(confirm("⚠️ Clear board? This cannot be undone.")) {
-                set(dbRef, null);
-                localStorage.removeItem('fairdraw_receipt');
-                showToast("System Reset Complete", "success");
+            const action = prompt("Type '1' for STATS REPORT\nType '2' to RESET SYSTEM");
+            
+            if(action === "1") {
+                get(dbRef).then(snap => {
+                    const data = snap.val();
+                    let report = "📊 REPORT:\n\n";
+                    COLORS.forEach(c => {
+                        const val = data[c].val;
+                        const status = val === 0 ? "Pending" : `POSITION ${toRoman(val)}`;
+                        report += `${c}: ${status}\n`;
+                    });
+                    alert(report);
+                });
+            } else if (action === "2") {
+                if(confirm("⚠️ RESET ENTIRE SYSTEM?")) {
+                    set(dbRef, null);
+                    localStorage.clear();
+                    window.location.reload();
+                }
             }
         }
     };
+
+    const showToast = (msg, type) => {
+        const t = document.getElementById('toast-container');
+        document.getElementById('toast-msg').innerText = msg;
+        t.classList.add('show');
+        setTimeout(()=>t.classList.remove('show'), 3000);
+    }
   </script>
 </body>
 </html>
